@@ -542,7 +542,6 @@ function renderDashboardScales() {
       </div>
     `;
 
-bindDashboardChurchLinks();
     return;
   }
 
@@ -704,6 +703,9 @@ bindDashboardChurchLinks();
 
     ${churchCardsHtml}
   `;
+
+bindDashboardChurchLinks();
+
 }
 
 function bindDashboardChurchLinks() {
@@ -1408,6 +1410,10 @@ function bindMetricLinks() {
           [...state.interessados];
 
         switch(metric) {
+
+          case "todos":
+            filtered = [...state.interessados];
+            break;
 
           case "ativos":
             filtered =
