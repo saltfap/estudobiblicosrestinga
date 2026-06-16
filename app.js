@@ -308,19 +308,22 @@ function daysSince(dateStr) {
 }
 
 function isAtRisk(item) {
+  const activeStudyStatuses = [
+    "Ativo",
+    "Pronto para apelo",
+    "Pronto para batismo"
+  ];
+
   return (
-    (item.status === "Pausado" ||
-      item.status === "Desinteressado" ||
-      daysSince(item.ultimoContato) > 14) &&
-    item.status !== "Concluído"
+    activeStudyStatuses.includes(item.status) &&
+    daysSince(item.ultimoContato) > 14
   );
 }
 
 function isDecision(item) {
   return (
     item.status === "Pronto para apelo" ||
-    item.status === "Pronto para batismo" ||
-    item.status === "Batismo Realizado"
+    item.status === "Pronto para batismo"
   );
 }
 
@@ -538,6 +541,8 @@ function renderDashboardScales() {
         <div class="empty-state">Ainda não há interessados suficientes para exibir o painel.</div>
       </div>
     `;
+
+bindDashboardChurchLinks();
     return;
   }
 
@@ -582,7 +587,12 @@ function renderDashboardScales() {
               return `
                 <article class="stack-item">
                   <div class="stack-item-top">
-                    <h4>${escapeHtml(church.igrejaNome)}</h4>
+                    <h4
+  class="dashboard-church-link"
+  data-igreja-id="${church.igrejaId}"
+>
+  ${escapeHtml(church.igrejaNome)}
+</h4>
                     <span class="tiny-muted">${percentages.total} estudos bíblicos</span>
                   </div>
 
@@ -694,6 +704,34 @@ function renderDashboardScales() {
 
     ${churchCardsHtml}
   `;
+}
+
+function bindDashboardChurchLinks() {
+  document
+    .querySelectorAll(".dashboard-church-link")
+    .forEach((element) => {
+
+      element.addEventListener("click", () => {
+
+        const igrejaId =
+          element.dataset.igrejaId;
+
+        if (!igrejaId) return;
+
+        serieFilter.value = "Todas";
+        statusFilter.value = "Todos";
+        interestFilter.value = "Todos";
+
+        setSection("interessadosSection");
+
+        const filtered =
+          state.interessados.filter(
+            item => item.igrejaId === igrejaId
+          );
+
+        renderInteressadosTable(filtered);
+      });
+    });
 }
 
 function sortByUpdatedDesc(arr) {
@@ -1299,48 +1337,117 @@ function renderMetrics() {
   const data = getVisibleInteressados();
 
   const metrics = [
-    {
-      label: "Total de interessados",
-      value: data.length,
-      className: "metric-card soft-blue"
-    },
-    {
-      label: "Ativos",
-      value: data.filter((item) => item.status === "Ativo").length,
-      className: "metric-card soft-green"
-    },
-    {
-      label: "Em risco",
-      value: data.filter(isAtRisk).length,
-      className: "metric-card soft-yellow"
-    },
-    {
-  label: "Concluídos",
-  value: data.filter((item) => item.status === "Concluído").length,
-  className: "metric-card soft-green"
-},
-    {
-      label: "Prontos para decisão",
-      value: data.filter(isDecision).length,
-      className: "metric-card soft-blue"
-    },
-{
-  label: "Batismo realizado",
-  value: data.filter((item) => item.status === "Batismo Realizado").length,
-  className: "metric-card soft-blue"
-}
-  ];
+  {
+    label: "Total de interessados",
+    metric: "todos",
+    value: data.length,
+    className: "metric-card soft-blue"
+  },
+  {
+    label: "Ativos",
+    metric: "ativos",
+    value: data.filter((item) => item.status === "Ativo").length,
+    className: "metric-card soft-green"
+  },
+  {
+    label: "Em risco",
+    metric: "risco",
+    value: data.filter(isAtRisk).length,
+    className: "metric-card soft-yellow"
+  },
+  {
+    label: "Concluídos",
+    metric: "concluidos",
+    value: data.filter((item) => item.status === "Concluído").length,
+    className: "metric-card soft-green"
+  },
+  {
+    label: "Prontos para decisão",
+    metric: "decisao",
+    value: data.filter(isDecision).length,
+    className: "metric-card soft-blue"
+  },
+  {
+    label: "Batismo realizado",
+    metric: "batismo",
+    value: data.filter((item) => item.status === "Batismo Realizado").length,
+    className: "metric-card soft-blue"
+  }
+];
 
   metricsGrid.innerHTML = metrics
     .map(
-      (item) => `
-        <div class="${item.className}">
-          <span class="metric-label">${escapeHtml(item.label)}</span>
-          <strong class="metric-value">${item.value}</strong>
-        </div>
-      `
-    )
+  (item) => `
+    <div
+      class="${item.className} dashboard-metric-link"
+      data-metric="${item.metric}"
+      style="cursor:pointer"
+    >
+      <span class="metric-label">${escapeHtml(item.label)}</span>
+      <strong class="metric-value">${item.value}</strong>
+    </div>
+  `
+)
     .join("");
+
+bindMetricLinks();
+}
+
+function bindMetricLinks() {
+
+  document
+    .querySelectorAll(".dashboard-metric-link")
+    .forEach((card) => {
+
+      card.addEventListener("click", () => {
+
+        const metric =
+          card.dataset.metric;
+
+        let filtered =
+          [...state.interessados];
+
+        switch(metric) {
+
+          case "ativos":
+            filtered =
+              filtered.filter(
+                item => item.status === "Ativo"
+              );
+            break;
+
+          case "risco":
+            filtered =
+              filtered.filter(isAtRisk);
+            break;
+
+          case "concluidos":
+            filtered =
+              filtered.filter(
+                item => item.status === "Concluído"
+              );
+            break;
+
+          case "decisao":
+            filtered =
+              filtered.filter(isDecision);
+            break;
+
+          case "batismo":
+            filtered =
+              filtered.filter(
+                item =>
+                  item.status ===
+                  "Batismo Realizado"
+              );
+            break;
+        }
+
+        setSection("interessadosSection");
+
+        renderInteressadosTable(filtered);
+      });
+    });
 }
 
 function renderRecentList() {
@@ -1408,8 +1515,10 @@ function renderAttentionList() {
     .join("");
 }
 
-function renderInteressadosTable() {
-  const data = getFilteredInteressados();
+function renderInteressadosTable(customData = null) {
+
+  const data =
+    customData || getFilteredInteressados();
 
   if (!data.length) {
     interessadosTable.innerHTML = `
@@ -1452,7 +1561,7 @@ function renderInteressadosTable() {
             </div>
           </td>
         </tr>
-      `;nt
+        `;
     })
     .join("");
 }
